@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <!-- Mobil ekranlara tam uyum sağlaması için viewport eklendi -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Skala Menüsü</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            /* Mobilde basılı tutunca metin seçilmesini engeller */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            text-align: center;
+            position: relative;
+            width: 90%; /* Mobilde ekrana göre daralır */
+            max-width: 500px;
+        }
+        .baslik {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 25px;
+            font-weight: 500;
+        }
+        .skala {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            height: 140px; /* Mobilde daha rahat görünmesi için boyu uzatıldı */
+            margin-bottom: 15px;
+            padding: 0 5px;
+        }
+        .cubuk-grup {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            flex: 1;
+            /* Mobilde tıklama refleksini hızlandırır */
+            touch-action: manipulation; 
+        }
+        .sayi {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        .cubuk {
+            width: 85%; /* Çubuklar mobil ekrana göre otomatik genişler */
+            max-width: 25px;
+            border-radius: 6px;
+            transition: transform 0.1s;
+        }
+        /* Dokunmatik ekranlarda basılma hissi */
+        .cubuk-grup:active .cubuk {
+            transform: scale(0.9);
+        }
+        .etiketler {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #555;
+            font-weight: bold;
+            padding: 0 5px;
+            margin-top: 10px;
+        }
+        #mesaj-alani {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            pointer-events: none;
+            z-index: 9999;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .mesaj-yazi {
+            font-size: 32px; /* Mobil ekranlar için yazı boyutu dengelendi */
+            font-weight: 900;
+            text-align: center;
+            text-transform: uppercase;
+            display: none;
+            text-shadow: 2px 2px 15px rgba(0,0,0,0.15);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+        .mesaj-emoji {
+            font-size: 100px;
+            display: none;
+            animation: buyu 0.3s ease-out;
+        }
+        @keyframes buyu {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="baslik">Ekrandaki sayılardan birine tıkla</div>
+        <div class="skala" id="skalaContainer"></div>
+        <div class="etiketler">
+            <span>EN AZ</span>
+            <span>ORTA</span>
+            <span>EN ÇOK</span>
+        </div>
+    </div>
+
+    <div id="mesaj-alani">
+        <div id="yaziGosterici" class="mesaj-yazi"></div>
+        <div id="emojiGosterici" class="mesaj-emoji"></div>
+    </div>
+
+    <script>
+        const veriVeritabani = {
+            0: { yazi: "HİÇ SEVMİYORSUN!", emoji: "💔", renk: "#ff4d4d" },
+            1: { yazi: "ÇOK AZ SEVİYORSUN", emoji: "😢", renk: "#ff4d4d" },
+            2: { yazi: "AZCIK SEVİYORSUN", emoji: "🙁", renk: "#ff7675" },
+            3: { yazi: "BİRAZ SEVİYORSUN", emoji: "😐", renk: "#ff7675" },
+            4: { yazi: "FENA DEĞİL", emoji: "🙂", renk: "#2ecc71" },
+            5: { yazi: "TAM ORTADASIN YA DA?", emoji: "🤔", renk: "#2ecc71" },
+            6: { yazi: "SEVİYORSUN GİBİ", emoji: "😊", renk: "#2ecc71" },
+            7: { yazi: "BAYA SEVİYORSUN", emoji: "😃", renk: "#3498db" },
+            8: { yazi: "BENİ BU KADAR ÇOK MU SEVİYORSUN", emoji: "🥰", renk: "#3498db" },
+            9: { yazi: "AŞIK OLMUŞSUN!", emoji: "😍", renk: "#3498db" },
+            10: { yazi: "ÇILGINLAR GİBİ SEVİYORSUN!", emoji: "❤️", renk: "#2f3542" }
+        };
+
+        const YAZI_SURESI = 1500;  
+        const EMOJI_SURESI = 1500; 
+
+        let tiklamaKilitli = false; 
+
+        const skalaContainer = document.getElementById('skalaContainer');
+        const yaziGosterici = document.getElementById('yaziGosterici');
+        const emojiGosterici = document.getElementById('emojiGosterici');
+
+        for (let i = 0; i <= 10; i++) {
+            const grup = document.createElement('div');
+            grup.className = 'cubuk-grup';
+            grup.onclick = () => eylemiBaslat(i);
+
+            const sayiText = document.createElement('div');
+            sayiText.className = 'sayi';
+            sayiText.innerText = i;
+
+            const cubuk = document.createElement('div');
+            cubuk.className = 'cubuk';
+            const boy = 30 + (i * 8); /* Çubuk boyları mobilde daha belirgin yapıldı */
+            cubuk.style.height = boy + 'px';
+            cubuk.style.backgroundColor = veriVeritabani[i].renk;
+
+            grup.appendChild(sayiText);
+            grup.appendChild(cubuk);
+            skalaContainer.appendChild(grup);
+        }
+
+        function eylemiBaslat(sayi) {
+            if (tiklamaKilitli) return; 
+            tiklamaKilitli = true;
+
+            const ses = new Audio('ses' + sayi + '.mp3');
+            ses.play().catch(e => console.log("Ses engellendi:", e));
+
+            const veri = veriVeritabani[sayi];
+
+            yaziGosterici.style.display = 'none';
+            emojiGosterici.style.display = 'none';
+
+            yaziGosterici.innerText = veri.yazi;
+            yaziGosterici.style.color = veri.renk;
+            yaziGosterici.style.display = 'block';
+
+            setTimeout(() => {
+                yaziGosterici.style.display = 'none';
+                
+                emojiGosterici.innerText = veri.emoji;
+                emojiGosterici.style.display = 'block';
+
+                setTimeout(() => {
+                    emojiGosterici.style.display = 'none';
+                    tiklamaKilitli = false; 
+                }, EMOJI_SURESI);
+
+            }, YAZI_SURESI);
+        }
+    </script>
+</body>
+</html>
